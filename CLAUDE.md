@@ -12,24 +12,20 @@ cada funcionalidade é um script separado e roda por um comando no terminal.
 
 Idioma do projeto: **português** (código comentado, mensagens, commits, README).
 
-## Estado das branches (importante)
+## Branches e PRs
 
-A `master` ainda **não tem** o código novo. As funcionalidades estão em
-branches **empilhadas**: cada uma parte da anterior e contém tudo dela.
+A `master` tem todo o código (jogo de gestos, teremim e círculo cromático,
+mergeados nos PRs #1 e #4).
 
-```
-master
- └─ claude/manual-tracking-game-3j9ia1   lançador + apps/common + jogo "gestos"
-     └─ claude/teremim                   + teremim, music.py, synth.py
-         └─ claude/circulo-cromatico     + círculo cromático, PolySynth, acordes
-```
-
-- Para ter tudo, use a `claude/circulo-cromatico`. Fazer o merge dela na
-  `master` traz as três.
-- Uma funcionalidade nova deve partir da branch mais recente, hoje a
-  `claude/circulo-cromatico`, até que tudo seja mergeado na `master`.
-- A correção do contorno de texto em `draw.text` está só a partir da
-  `claude/teremim`. A branch do jogo ainda tem a versão antiga.
+- Cada funcionalidade nova fica numa branch própria criada a partir da
+  `master` e entra por PR direto para a `master`.
+- **Evite PRs empilhados** (base = outra branch de feature). No PR #2 e no #3
+  o merge foi feito na branch de base e não na `master`, porque as branches
+  não foram apagadas e o GitHub não mudou a base sozinho. Foi preciso um PR
+  extra (#4) para corrigir.
+- Se empilhar for inevitável, avise o usuário para mergear em ordem e apagar
+  a branch depois de cada merge, ou para mudar a base do PR seguinte para a
+  `master`.
 
 ## Como rodar
 
@@ -99,8 +95,8 @@ apps/
 - **Sem acentos no texto da tela:** o `cv2.putText` não desenha acentos. Escreva
   "Mao", "Tres", "Do#". Acentos podem aparecer no README e nos comentários.
 - **Contorno de texto:** `draw.text` desenha o contorno com deslocamentos e a
-  mesma espessura do texto. Um traço mais grosso deixa o contorno mais largo e
-  cria um texto "fantasma".
+  mesma espessura do texto. Não volte a usar um traço mais grosso: ele deixa o
+  contorno mais largo e cria um texto "fantasma".
 - **Tempo:** compare timestamps com `is None`, nunca com `x or now`, porque
   0.0 é falsy. Esse bug já aconteceu no jogo.
 - **Áudio:** a thread da câmera só altera `target_freq` e `target_amp`
@@ -113,9 +109,8 @@ apps/
 - **Encoding:**
   - `requirements.txt` está em **UTF-16** e o `pip` lê assim mesmo. Não
     reescreva sem necessidade.
-  - Na `master`, o `.gitignore` também está em UTF-16 e por isso é ignorado
-    pelo Git. Nas branches novas ele já foi convertido para UTF-8. Não
-    comite `__pycache__`.
+  - O `.gitignore` já foi convertido para UTF-8 (antes, em UTF-16, o Git o
+    ignorava). Mantenha em UTF-8 e não comite `__pycache__`.
 
 ## Testes sem câmera
 

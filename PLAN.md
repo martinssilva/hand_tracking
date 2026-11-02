@@ -11,13 +11,13 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
 
 ## Feito
 
-| # | Funcionalidade | Comando | Branch | Status |
+| # | Funcionalidade | Comando | PR | Status |
 |---|---|---|---|---|
-| 0 | Controle do mouse (original) | `mouse` | `master` | ok |
-| 1 | Lançador + módulos comuns | `python main.py` | `claude/manual-tracking-game-3j9ia1` | ok |
-| 2 | Jogo "Imite o Gesto" | `gestos` | `claude/manual-tracking-game-3j9ia1` | testado sem câmera |
-| 3 | Simulador de teremim | `teremim` | `claude/teremim` | testado sem câmera |
-| 4 | Círculo cromático musical | `circulo` | `claude/circulo-cromatico` | testado sem câmera |
+| 0 | Controle do mouse (original) | `mouse` | — | na `master` |
+| 1 | Lançador + módulos comuns | `python main.py` | #1 | na `master` |
+| 2 | Jogo "Imite o Gesto" | `gestos` | #1 | na `master`, testado sem câmera |
+| 3 | Simulador de teremim | `teremim` | #2 → #4 | na `master`, testado sem câmera |
+| 4 | Círculo cromático musical | `circulo` | #3 → #4 | na `master`, testado sem câmera |
 
 ### 1. Lançador e módulos comuns
 - `main.py` lista os comandos e repassa os argumentos para cada app.
@@ -66,10 +66,11 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
   - pinça (`PINCH_ON` e `PINCH_OFF`);
   - faixas úteis da tela no teremim (`TOP`/`BOTTOM` e `VOL_TOP`/`VOL_BOTTOM`);
   - latência do áudio no Windows (`BLOCK_SIZE`, `latency="low"`).
-- [ ] **Mergear na `master`.** O merge de `claude/circulo-cromatico` traz tudo
-      e resolve a correção do texto que falta na branch do jogo.
-- [ ] Converter o `.gitignore` da `master` para UTF-8. Já foi feito nas
-      branches e é resolvido pelo merge.
+- [x] ~~Mergear na `master`~~: feito (#1 e #4).
+- [x] ~~Converter o `.gitignore` para UTF-8~~: feito.
+- [ ] Apagar as branches antigas (`claude/manual-tracking-game-3j9ia1`,
+      `claude/teremim`, `claude/circulo-cromatico`) e ativar "Automatically
+      delete head branches" no GitHub.
 - [ ] Criar `tests/` com os testes sem câmera (gestos sintéticos, synth via
       FFT, mãos falsas, renderização). Hoje eles rodaram só durante o
       desenvolvimento e não estão no repositório.
@@ -81,8 +82,8 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
 
 ## Próximo: Fruit Ninja (`ninja`)
 
-Branch sugerida: `claude/fruit-ninja`, a partir de `claude/circulo-cromatico`
-ou da `master` depois do merge.
+Branch: `claude/fruit-ninja`, a partir da `master`, com PR direto para a
+`master`.
 
 ### Passo 0: base de jogo comum (refatoração)
 - Extrair do `gesture_game.py` um `apps/common/game.py` com:
