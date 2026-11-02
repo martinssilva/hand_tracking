@@ -47,6 +47,7 @@ python main.py <comando> --help
 |----------|-----------|
 | `gestos` | Jogo **Imite o Gesto**: aparece um símbolo de mão e você tem que repetir com a sua mão antes do tempo acabar. Acertou = ganha pontos; 3 erros = fim de jogo e mostra a pontuação. |
 | `teremim` | **Simulador de teremim**: mão direita controla a nota, mão esquerda o volume. |
+| `circulo` | **Círculo cromático**: toque nas fatias coloridas para tocar notas e acordes. |
 | `mouse`  | Script original (`hand_tracking.py`): controla o mouse com o indicador. |
 
 ### Jogo "Imite o Gesto"
@@ -83,6 +84,29 @@ python main.py teremim --timbre seno --vibrato
 - Teclas: **Q** troca a escala, **W** troca o timbre, **V** liga/desliga o vibrato,
   **H** mostra os pontos da mão, **ESC** sai.
 
+### Círculo Cromático
+
+Também precisa do `sounddevice`.
+
+```
+python main.py circulo                                   # pinça, ordem cromática, 2 oitavas
+python main.py circulo --ordem quintas --acorde diatonico --escala maior --tonica G
+python main.py circulo --modo toque --decaimento 1.5     # só encostar; som some como piano
+```
+
+- 12 fatias coloridas (as cores dão a volta no arco-íris). Cada **anel** é uma oitava, e o de dentro é o mais grave.
+- **Modo `pinca`** (padrão): encoste o polegar no indicador em cima da nota. Ela soa enquanto a pinça
+  estiver fechada. Arrastar a pinça para outra fatia troca a nota.
+- **Modo `toque`**: basta a ponta do indicador estar em cima da fatia.
+- **Duas mãos** tocam ao mesmo tempo, e o centro do círculo mostra o nome do acorde formado (ex.: "Do maior").
+- **Acordes** (`--acorde`): `nota` toca só a nota; `maior` e `menor` tocam a tríade. `diatonico` monta o acorde
+  da escala escolhida: em Dó maior, Ré vira Ré menor e Sol vira Sol maior.
+- **Ordem** (`--ordem`): `cromatica` (Dó, Dó#, Ré…) ou `quintas` (Dó, Sol, Ré, Lá…).
+  No círculo das quintas, os acordes que combinam ficam vizinhos.
+- **Escala** (`--escala` + `--tonica`): escurece as notas que ficam fora da escala.
+- **`--decaimento`**: tempo para a nota sumir mesmo segurada (0 = sustenta).
+- Teclas: **M** modo, **Q** ordem, **A** acorde, **E** escala, **W** timbre, **H** pontos da mão, **ESC** sai.
+
 ### Estrutura
 
 ```
@@ -90,12 +114,13 @@ main.py                  # lançador: python main.py <comando>
 apps/
   gesture_game.py        # jogo Imite o Gesto
   theremin.py            # simulador de teremim
+  color_wheel.py         # círculo cromático musical
   common/
     tracker.py           # HandTracker (MediaPipe) — até 2 mãos, reutilizável
     gestures.py          # dedos esticados/dobrados + reconhecimento de gestos
     draw.py              # texto, painéis, barras, corações, ícone de mão
-    music.py             # notas <-> frequências, escalas, afinação
-    synth.py             # oscilador com glide/vibrato + saída de áudio (sounddevice)
+    music.py             # notas <-> frequências, escalas, nomes de acordes, tríades
+    synth.py             # oscilador (glide/vibrato), PolySynth (várias notas) e saída de áudio
 ```
 
 Para criar uma funcionalidade nova: crie `apps/<nome>.py` com uma função `main(argv)`
