@@ -14,6 +14,8 @@ import sys
 # comando -> (modulo, descricao)
 COMMANDS = {
     "gestos": ("apps.gesture_game", "Jogo: imite o gesto de mao que aparece na tela"),
+    "teremim": ("apps.theremin",    "Simulador de teremim: mao direita = nota, esquerda = volume"),
+    "circulo": ("apps.color_wheel", "Circulo cromatico: toque nas notas coloridas para tocar"),
     "mouse":  ("hand_tracking",     "Controla o mouse com o indicador (script original)"),
 }
 
