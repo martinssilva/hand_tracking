@@ -36,6 +36,7 @@ pip install opencv-python mediapipe pyautogui sounddevice
 python main.py                 # lista os comandos
 python main.py <comando> --help
 python main.py gestos          # jogo Imite o Gesto
+python main.py corte           # jogo Corte no Ar (cortar frutas; 1 ou 2 jogadores)
 python main.py teremim         # simulador de teremim
 python main.py circulo         # círculo cromático musical
 python main.py mouse           # script original (hand_tracking.py)
@@ -53,15 +54,18 @@ main.py                  # lançador: COMMANDS = {comando: (módulo, descrição
 hand_tracking.py         # script original (controle do mouse), roda no import
 apps/
   gesture_game.py        # "gestos": imite o gesto da tela; acerto = pontos, 3 erros = fim
+  slice_game.py          # "corte": frutas lançadas, o indicador corta (rápido); combos, bombas, 2 jogadores
   theremin.py            # "teremim": mão direita = nota (altura), esquerda = volume
   color_wheel.py         # "circulo": 12 notas coloridas em anéis; pinça/toque; acordes
   common/
     tracker.py           # HandTracker (MediaPipe, até 2 mãos), Hand, open_camera()
+    game.py              # Scoreboard, HoldTimer, draw_hud/start/game_over, run_game()
     gestures.py          # fingers_extended(), Gesture, GESTURES, classify(), palm_size()
     draw.py              # text() com contorno, panel(), progress_bar(), heart(), hand_icon()
     music.py             # midi<->freq, note_name(), parse_note(), SCALES, snap_to_scale(),
                          # chord_name(), triad()
     synth.py             # Oscillator (glide/vibrato), PolySynth (vozes), AudioOutput
+tests/                   # pytest, sem câmera: helpers.py tem as mãos sintéticas
 ```
 
 `gestures.py` e `music.py` **não importam** mediapipe nem OpenCV. O
@@ -76,7 +80,18 @@ apps/
 4. Deixe a lógica numa classe com `update(...)` (estado por frame) e
    `draw(img)`. Mapeamentos e geometria ficam em funções puras, para poder
    testar.
-5. Documente no README: tabela de comandos, uma seção da funcionalidade e a
+5. **Jogos** usam `apps/common/game.py`:
+   - `Scoreboard` para pontos, vidas e recorde;
+   - `HoldTimer` para "segure X segundos";
+   - `draw_hud`, `draw_start_screen` e `draw_game_over` para as telas;
+   - `run_game(jogo, janela, camera)` para o laço da câmera. O jogo precisa ter
+     `process(now, hands, w, h)`, `draw(img, now)`, `on_key(key, now)` e
+     `show_landmarks`.
+   - Para manter o padrão, os jogos começam com a mão aberta segurada por 1s
+     ou com ESPAÇO.
+6. Escreva os testes em `tests/test_<nome>.py`, usando as mãos sintéticas de
+   `tests/helpers.py`.
+7. Documente no README: tabela de comandos, uma seção da funcionalidade e a
    árvore de estrutura.
 
 ## Convenções e armadilhas
@@ -127,7 +142,16 @@ O ambiente do Claude não tem webcam, mediapipe nem placa de som. Para validar:
   - Grave um `.wav` com o módulo `wave` para ouvir.
 - **Telas:** chame `draw(img)` num `np.full((720, 1280, 3), 70, np.uint8)` e
   salve com `cv2.imwrite`.
-- **Ambiente:** `pip install opencv-python-headless numpy`. O mediapipe e o
+- **Ambiente:** `pip install opencv-python-headless numpy pytest`. O mediapipe e o
   PortAudio não estão disponíveis no ambiente do Claude.
+- **Rodar:** `python -m pytest tests`. Rode sempre antes de comitar.
+- **Refatoração sem mudar comportamento:** salve as telas antes da mudança
+  com um roteiro fixo (`random.seed`, tempos fixos) e compare pixel a pixel
+  depois. Foi assim que o `gesture_game.py` passou para o `game.py`.
 
-Ainda não existe pasta de testes no repositório (veja o PLAN.md).
+## Originalidade
+
+Jogos podem ser do mesmo **gênero** de jogos conhecidos, mas não recriações
+deles: nada de nome, marca, arte ou interface copiados. Por exemplo, o pedido
+de um "fruit ninja" virou o "Corte no Ar" (`corte`), um jogo original de
+cortar frutas no padrão dos nossos jogos.

@@ -12,15 +12,15 @@ Teclas: ESPACO comeca/reinicia | ESC sai
 """
 import argparse
 import random
-import time
-
-import cv2
 
 from apps.common import draw as ui
-from apps.common.gestures import GESTURES, GESTURES_BY_KEY, classify
+from apps.common.game import (HoldTimer, Scoreboard, draw_game_over, draw_hud,
+                              draw_start_screen, run_game)
+from apps.common.gestures import GESTURES, classify
 
 WINDOW = "Imite o Gesto"
 HOLD_TIME = 0.45        # segundos segurando o gesto certo para valer
+START_HOLD_TIME = 1.0   # segundos de mao aberta para comecar
 FEEDBACK_TIME = 1.2     # segundos mostrando "Acertou/Errou"
 MIN_ROUND_TIME = 2.5    # o tempo por rodada diminui ate esse limite
 
@@ -35,23 +35,25 @@ def icon_for(gesture, img, cx, cy, size):
 
 
 class GestureGame:
-    def __init__(self, points_per_hit: int, round_time: float, lives: int):
+    def __init__(self, points_per_hit: int, round_time: float, lives: int,
+                 debug: bool = False):
         self.points_per_hit = points_per_hit
         self.base_round_time = round_time
-        self.max_lives = lives
-        self.best = 0
+        self.board = Scoreboard(lives)
+        self.debug = debug
         self.state = START
-        self.start_hold = None
+        self.start_hold = HoldTimer()   # mao aberta na tela inicial
+        self.gesture_hold = HoldTimer() # gesto certo durante a rodada
+        self.detected_names = []
         self.reset()
 
     # ---------- estado ----------
     def reset(self):
-        self.score = 0
+        self.board.reset()
         self.hits = 0
-        self.lives = self.max_lives
         self.target = None
         self.round_start = 0.0
-        self.hold_start = None
+        self.gesture_hold.reset()
         self.feedback_until = 0.0
         self.last_result = None   # (acertou, pontos)
 
@@ -62,7 +64,7 @@ class GestureGame:
         options = [g for g in GESTURES if g is not self.target]
         self.target = random.choice(options)
         self.round_start = now
-        self.hold_start = None
+        self.gesture_hold.reset()
         self.state = ROUND
 
     def start(self, now: float):
@@ -71,73 +73,73 @@ class GestureGame:
 
     def finish_round(self, now: float, success: bool):
         if success:
-            self.score += self.points_per_hit
+            self.board.add(self.points_per_hit)
             self.hits += 1
             self.last_result = (True, self.points_per_hit)
         else:
-            self.lives -= 1
+            self.board.lose_life()
             self.last_result = (False, 0)
         self.feedback_until = now + FEEDBACK_TIME
         self.state = FEEDBACK
+
+    # ---------- interface do run_game ----------
+    @property
+    def show_landmarks(self) -> bool:
+        return self.debug or self.state in (ROUND, FEEDBACK)
+
+    def process(self, now: float, hands, width: int, height: int):
+        detected, names = set(), []
+        for hand in hands:
+            g = classify(hand.points)
+            if g:
+                detected.add(g.key)
+                names.append(g.name)
+        self.detected_names = names
+        self.update(now, detected)
+
+    def on_key(self, key: int, now: float):
+        if key == ord(" ") and self.state in (START, GAME_OVER):
+            self.start(now)
 
     # ---------- logica por frame ----------
     def update(self, now: float, detected: set):
         if self.state == START:
             # segurar a mao aberta por 1s tambem comeca o jogo
-            if "aberta" in detected:
-                if self.start_hold is None:
-                    self.start_hold = now
-                if now - self.start_hold > 1.0:
-                    self.start_hold = None
-                    self.start(now)
-            else:
-                self.start_hold = None
+            if self.start_hold.update(now, "aberta" in detected) > START_HOLD_TIME:
+                self.start_hold.reset()
+                self.start(now)
 
         elif self.state == ROUND:
-            if self.target.key in detected:
-                if self.hold_start is None:
-                    self.hold_start = now
-                if now - self.hold_start >= HOLD_TIME:
-                    self.finish_round(now, True)
-                    return
-            else:
-                self.hold_start = None
+            if self.gesture_hold.update(now, self.target.key in detected) >= HOLD_TIME:
+                self.finish_round(now, True)
+                return
             if now - self.round_start > self.round_time():
                 self.finish_round(now, False)
 
         elif self.state == FEEDBACK:
             if now >= self.feedback_until:
-                if self.lives <= 0:
-                    self.best = max(self.best, self.score)
+                if not self.board.alive:
+                    self.board.finish()
                     self.state = GAME_OVER
                 else:
                     self.new_round(now)
 
     # ---------- desenho ----------
-    def draw_hud(self, img):
-        h, w = img.shape[:2]
-        ui.panel(img, 0, 0, w, 60)
-        ui.text(img, f"Pontos: {self.score}", (20, 42), 1.0, ui.YELLOW)
-        for i in range(self.max_lives):
-            ui.heart(img, w - 40 - i * 45, 26, 26, filled=i < self.lives)
-
-    def draw(self, img, now: float, detected_names):
+    def draw(self, img, now: float, detected_names=None):
+        names = self.detected_names if detected_names is None else detected_names
         h, w = img.shape[:2]
         cx = w // 2
 
         if self.state == START:
-            ui.panel(img, 0, 0, w, h, alpha=0.5)
-            ui.text(img, "IMITE O GESTO", (cx, h // 2 - 110), 2.0, ui.YELLOW, 3, center=True)
-            ui.text(img, "Reproduza o simbolo antes do tempo acabar", (cx, h // 2 - 30), 0.9, center=True)
-            ui.text(img, f"{self.max_lives} erros e fim de jogo", (cx, h // 2 + 15), 0.9, center=True)
-            ui.text(img, "Mostre a MAO ABERTA ou aperte ESPACO", (cx, h // 2 + 90), 0.9, ui.GREEN, center=True)
-            if self.start_hold is not None:
-                ui.progress_bar(img, cx - 150, h // 2 + 120, 300, 16, now - self.start_hold)
-            if self.best:
-                ui.text(img, f"Recorde: {self.best}", (cx, h - 40), 0.9, ui.YELLOW, center=True)
+            progress = now - self.start_hold.since if self.start_hold.active else None
+            draw_start_screen(img, "IMITE O GESTO",
+                              ["Reproduza o simbolo antes do tempo acabar",
+                               f"{self.board.max_lives} erros e fim de jogo"],
+                              "Mostre a MAO ABERTA ou aperte ESPACO",
+                              progress, self.board.best)
             return
 
-        self.draw_hud(img)
+        draw_hud(img, self.board)
 
         if self.state in (ROUND, FEEDBACK) and self.target:
             # cartao com o gesto alvo
@@ -153,9 +155,10 @@ class GestureGame:
             remaining = 1 - elapsed / self.round_time()
             color = ui.GREEN if remaining > 0.5 else ui.YELLOW if remaining > 0.25 else ui.RED
             ui.progress_bar(img, 20, 72, w - 320, 18, remaining, color)
-            if self.hold_start is not None:
+            if self.gesture_hold.active:
                 ui.text(img, "Segura...", (20, h - 70), 1.0, ui.GREEN)
-                ui.progress_bar(img, 20, h - 55, 250, 14, (now - self.hold_start) / HOLD_TIME)
+                ui.progress_bar(img, 20, h - 55, 250, 14,
+                                (now - self.gesture_hold.since) / HOLD_TIME)
 
         if self.state == FEEDBACK and self.last_result:
             ok, pts = self.last_result
@@ -163,15 +166,12 @@ class GestureGame:
             ui.text(img, msg, (cx - 130, h // 2), 2.0, color, 4, center=True)
 
         if self.state == GAME_OVER:
-            ui.panel(img, 0, 60, w, h, alpha=0.65)
-            ui.text(img, "FIM DE JOGO", (cx, h // 2 - 90), 2.2, ui.RED, 4, center=True)
-            ui.text(img, f"Pontos: {self.score}", (cx, h // 2), 1.6, ui.YELLOW, 3, center=True)
-            ui.text(img, f"Acertos: {self.hits}   Recorde: {self.best}", (cx, h // 2 + 60), 1.0, center=True)
-            ui.text(img, "ESPACO joga de novo | ESC sai", (cx, h // 2 + 130), 0.9, ui.GREEN, center=True)
+            draw_game_over(img, self.board.score,
+                           f"Acertos: {self.hits}   Recorde: {self.board.best}")
 
         # gesto que esta sendo detectado (ajuda a entender o que a camera ve)
         if self.state != GAME_OVER:
-            label = ", ".join(detected_names) if detected_names else "-"
+            label = ", ".join(names) if names else "-"
             ui.text(img, f"Detectado: {label}", (20, h - 20), 0.7)
 
 
@@ -187,49 +187,8 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
-
-    # import aqui para o --help funcionar mesmo sem mediapipe instalado
-    from apps.common.tracker import HandTracker, open_camera
-
-    cap = open_camera(args.camera)
-    tracker = HandTracker(max_hands=2)
-    game = GestureGame(args.pontos, args.tempo, args.vidas)
-
-    cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
-    try:
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            frame = cv2.flip(frame, 1)  # espelha: fica natural como um espelho
-            now = time.monotonic()
-
-            hands = tracker.process(frame)
-            detected = set()
-            names = []
-            for hand in hands:
-                g = classify(hand.points)
-                if g:
-                    detected.add(g.key)
-                    names.append(g.name)
-                if args.debug or game.state in (ROUND, FEEDBACK):
-                    tracker.draw(frame, hand)
-
-            game.update(now, detected)
-            game.draw(frame, now, names)
-            cv2.imshow(WINDOW, frame)
-
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27:  # ESC
-                break
-            if key == ord(" ") and game.state in (START, GAME_OVER):
-                game.start(now)
-            if cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
-                break
-    finally:
-        cap.release()
-        tracker.close()
-        cv2.destroyAllWindows()
+    game = GestureGame(args.pontos, args.tempo, args.vidas, debug=args.debug)
+    run_game(game, WINDOW, args.camera, max_hands=2)
 
 
 if __name__ == "__main__":

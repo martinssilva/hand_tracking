@@ -202,7 +202,6 @@ class ColorWheel:
         h, w = img.shape[:2]
         lay = self.layout or WheelLayout(w, h, self.rings)
         playing = set(self.playing_midis())
-        playing_pcs = {m % 12 for m in playing}
         touched = {cell for cell, _ in self.held.values()}
 
         overlay = img.copy()
