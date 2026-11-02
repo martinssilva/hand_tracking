@@ -46,6 +46,7 @@ python main.py <comando> --help
 | Comando  | O que faz |
 |----------|-----------|
 | `gestos` | Jogo **Imite o Gesto**: aparece um símbolo de mão e você tem que repetir com a sua mão antes do tempo acabar. Acertou = ganha pontos; 3 erros = fim de jogo e mostra a pontuação. |
+| `corte` | Jogo **Corte no Ar**: corte as frutas lançadas no ar com um movimento rápido do indicador. 1 ou 2 jogadores. |
 | `teremim` | **Simulador de teremim**: mão direita controla a nota, mão esquerda o volume. |
 | `circulo` | **Círculo cromático**: toque nas fatias coloridas para tocar notas e acordes. |
 | `mouse`  | Script original (`hand_tracking.py`): controla o mouse com o indicador. |
@@ -107,20 +108,50 @@ python main.py circulo --modo toque --decaimento 1.5     # só encostar; som som
 - **`--decaimento`**: tempo para a nota sumir mesmo segurada (0 = sustenta).
 - Teclas: **M** modo, **Q** ordem, **A** acorde, **E** escala, **W** timbre, **H** pontos da mão, **ESC** sai.
 
+### Jogo "Corte no Ar"
+
+```
+python main.py corte                          # 1 jogador, 3 vidas
+python main.py corte --jogadores 2            # tela dividida: cada um corta do seu lado
+python main.py corte --velocidade 0.7 --bomba-fatal
+```
+
+- Comece mostrando a **mão aberta** por 1 segundo (ou apertando ESPAÇO).
+- O **indicador** é a lâmina. Só corta com um movimento **rápido**; mão parada não corta.
+- Cortar 3 ou mais frutas no mesmo golpe dá **bônus de combo**. A ameixa (menor) vale 2 pontos.
+- Fruta que cai sem ser cortada ou **bomba cortada** = -1 vida. Com `--bomba-fatal`, a bomba acaba o jogo.
+- As ondas ficam maiores e com mais bombas com o tempo.
+- **2 jogadores**: cada jogador corta só as frutas do seu lado e tem placar e vidas próprios.
+  O jogo acaba quando os dois perdem todas as vidas, e vence quem fez mais pontos.
+- Efeitos sonoros com o `sounddevice` (se não houver áudio, o jogo segue sem som; `--sem-som` desliga).
+- Teclas: **ESPAÇO** começa/reinicia, **H** mostra os pontos da mão, **ESC** sai.
+
+### Testes
+
+Rodam sem câmera, sem mediapipe e sem placa de som:
+
+```
+pip install pytest numpy opencv-python
+python -m pytest tests
+```
+
 ### Estrutura
 
 ```
 main.py                  # lançador: python main.py <comando>
 apps/
   gesture_game.py        # jogo Imite o Gesto
+  slice_game.py          # jogo Corte no Ar
   theremin.py            # simulador de teremim
   color_wheel.py         # círculo cromático musical
   common/
     tracker.py           # HandTracker (MediaPipe) — até 2 mãos, reutilizável
+    game.py              # base dos jogos: placar, vidas, telas de início/fim, laço da câmera
     gestures.py          # dedos esticados/dobrados + reconhecimento de gestos
     draw.py              # texto, painéis, barras, corações, ícone de mão
     music.py             # notas <-> frequências, escalas, nomes de acordes, tríades
     synth.py             # oscilador (glide/vibrato), PolySynth (várias notas) e saída de áudio
+tests/                   # testes sem câmera (python -m pytest tests)
 ```
 
 Para criar uma funcionalidade nova: crie `apps/<nome>.py` com uma função `main(argv)`

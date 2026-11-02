@@ -18,6 +18,8 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
 | 2 | Jogo "Imite o Gesto" | `gestos` | #1 | na `master`, testado sem câmera |
 | 3 | Simulador de teremim | `teremim` | #2 → #4 | na `master`, testado sem câmera |
 | 4 | Círculo cromático musical | `circulo` | #3 → #4 | na `master`, testado sem câmera |
+| 5 | Base de jogo comum + testes | `python -m pytest tests` | `claude/fruit-ninja` | 34 testes passando |
+| 6 | Jogo "Corte no Ar" (estilo fruit ninja) | `corte` | `claude/fruit-ninja` | testado sem câmera |
 
 ### 1. Lançador e módulos comuns
 - `main.py` lista os comandos e repassa os argumentos para cada app.
@@ -58,6 +60,31 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
 - `PolySynth`: até 10 vozes, cortando a mais antiga quando falta voz, com
   decaimento opcional (som tipo piano) e saturação suave.
 
+### 5. Base de jogo comum (`apps/common/game.py`) e testes (`tests/`)
+- `Scoreboard` (pontos, vidas, recorde), `HoldTimer`, HUD, telas de início e
+  fim de jogo e `run_game`, que é o laço da câmera.
+- O `gesture_game.py` foi refatorado para usar essa base. As 9 telas de um
+  roteiro fixo ficaram idênticas pixel a pixel antes e depois.
+- Testes com pytest para tudo: gestos, jogo de gestos, música e synth (FFT e
+  estalos), teremim, círculo, base de jogo e "Corte no Ar".
+
+### 6. Jogo "Corte no Ar" (`corte`)
+- Jogo original no estilo fruit ninja. O pedido era um "fruit ninja", mas o
+  jogo não copia nome, marca nem interface (veja Originalidade no CLAUDE.md).
+- **Lâmina:** o rastro do indicador (0,15s). Só corta acima de `CUT_SPEED`
+  (3,5 palmas/s); mão parada não corta.
+- **Colisão:** segmento do movimento no frame × círculo da fruta.
+- **Frutas:** 5 tipos lançados com gravidade (a ameixa vale 2). Ao cortar,
+  viram duas metades na perpendicular do corte, mais respingos e "+N".
+- **Combo:** 3 ou mais frutas em até 0,3s entre cortes dão bônus igual ao
+  número de frutas.
+- **Vidas:** fruta perdida ou bomba cortada tira uma vida (`--bomba-fatal` =
+  fim de jogo). As ondas crescem e as bombas aumentam com o tempo.
+- **2 jogadores:** tela dividida, cada um corta só do seu lado, com placar e
+  vidas próprios. Vence quem fizer mais pontos.
+- **Som:** efeitos curtos com o `PolySynth`. Sem placa de som, o jogo segue
+  mudo; `--sem-som` desliga.
+
 ## Pendências e riscos
 
 - [ ] **Testar com câmera e som reais.** Até agora tudo foi testado com dados
@@ -65,72 +92,31 @@ tracking, o reconhecimento de gestos, o desenho e o áudio em `apps/common/`.
   - polegar em `gestures.fingers_extended` (fatores 1.1 e 0.5);
   - pinça (`PINCH_ON` e `PINCH_OFF`);
   - faixas úteis da tela no teremim (`TOP`/`BOTTOM` e `VOL_TOP`/`VOL_BOTTOM`);
-  - latência do áudio no Windows (`BLOCK_SIZE`, `latency="low"`).
+  - latência do áudio no Windows (`BLOCK_SIZE`, `latency="low"`);
+  - velocidade mínima de corte (`CUT_SPEED` em `slice_game.py`) e a
+    dificuldade (`_difficulty`).
 - [x] ~~Mergear na `master`~~: feito (#1 e #4).
 - [x] ~~Converter o `.gitignore` para UTF-8~~: feito.
 - [ ] Apagar as branches antigas (`claude/manual-tracking-game-3j9ia1`,
       `claude/teremim`, `claude/circulo-cromatico`) e ativar "Automatically
       delete head branches" no GitHub.
-- [ ] Criar `tests/` com os testes sem câmera (gestos sintéticos, synth via
-      FFT, mãos falsas, renderização). Hoje eles rodaram só durante o
-      desenvolvimento e não estão no repositório.
+- [x] ~~Criar `tests/` com os testes sem câmera~~: feito (34 testes, pytest).
 - [ ] Rever o `requirements.txt`: está em UTF-16, tem dependências sobrando e
       fixar a versão do `mediapipe` é obrigatório por causa da API
       `solutions`.
 - [ ] Opcional: um `--debug` comum a todos os apps (FPS, landmarks, valores
       brutos) para ajudar na calibração.
 
-## Próximo: Fruit Ninja (`ninja`)
+## Próximo
 
-Branch: `claude/fruit-ninja`, a partir da `master`, com PR direto para a
-`master`.
-
-### Passo 0: base de jogo comum (refatoração)
-- Extrair do `gesture_game.py` um `apps/common/game.py` com:
-  - estados (início, jogando, fim de jogo);
-  - pontos, vidas e recorde;
-  - HUD (pontos e corações);
-  - telas de início e fim de jogo;
-  - laço principal: câmera, espelho, tracker, update, draw e teclas.
-- Refatorar o jogo de gestos para usar essa base. O comportamento não pode
-  mudar.
-
-### Jogabilidade
-- **Lâmina:** o indicador corta. Guardar o rastro dos últimos ~8 frames de
-  `(x, y, t)` e desenhar um traço que vai sumindo.
-- **Corte válido:** só quando a velocidade do dedo passa de um limite, medido
-  em palmas por segundo para não depender da distância à câmera. Mão parada
-  não corta.
-- **Colisão:** o segmento entre o frame anterior e o atual do rastro
-  intersecta o círculo da fruta.
-- **Frutas:** lançadas de baixo com velocidade inicial e gravidade, desenhadas
-  com formas do OpenCV (círculos coloridos com detalhes). Ao cortar, viram
-  duas metades caindo na direção do corte, mais respingos.
-- **Bomba:** cortar tira uma vida, ou encerra o jogo, a definir.
-- **Fruta perdida:** se cair sem ser cortada, tira uma vida. São 3 vidas.
-- **Pontos:** 1 por fruta, com bônus de combo para 3 ou mais frutas no mesmo
-  golpe (~0,3s).
-- **Dificuldade:** mais frutas por onda e mais bombas com o tempo.
-- **Som (opcional):** efeito de corte com o `synth`, por exemplo um ruído
-  curto filtrado ou uma nota que sobe com o combo.
-
-### 2 jogadores
-- Duas lâminas, uma por mão, com id por lado da tela ou pelo `label`.
-- Modo `--jogadores 2`: tela dividida, cada jogador corta só as frutas do seu
-  lado e tem placar separado.
-
-### Testes sem câmera
-- Física com passo de tempo fixo (trajetória, tempo de queda).
-- Colisão segmento × círculo (casos que atravessam, que tangenciam e que
-  ficam fora).
-- Rastro rápido contra rastro lento (limite de velocidade).
-- Renderizar telas com frutas, metades e fim de jogo.
+A definir. Candidatos nas Ideias futuras: tocar alvos (sprites) e jogo de
+ritmo, que aproveitam a base de jogo e a colisão do "Corte no Ar".
 
 ## Ideias futuras
 
 - **Tocar alvos (sprites):** alvos aparecem em pontos da tela e precisam ser
   tocados no lugar. Aproveita a base de jogo, a pinça do círculo e a
-  colisão do ninja.
+  colisão do "Corte no Ar".
 - **Teremim com 2 vozes:** usar o `PolySynth` com uma mão para cada voz.
 - **Gravar e tocar de volta (looper)** no círculo cromático e no teremim.
 - **Jogo de ritmo:** notas caem até o círculo cromático e é preciso tocá-las
