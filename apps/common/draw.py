@@ -23,7 +23,14 @@ def text(img, msg: str, org, scale: float = 1.0, color: Color = WHITE,
     if center:
         (w, h), _ = cv2.getTextSize(msg, FONT, scale, thickness)
         org = (int(org[0] - w / 2), int(org[1] + h / 2))
-    cv2.putText(img, msg, org, FONT, scale, BLACK, thickness + 4, cv2.LINE_AA)
+    # contorno desenhado com deslocamentos (e nao com traco mais grosso), para o
+    # contorno ter exatamente a mesma largura do texto
+    r = max(1, thickness // 2 + 1)
+    for dx in (-r, 0, r):
+        for dy in (-r, 0, r):
+            if dx or dy:
+                cv2.putText(img, msg, (org[0] + dx, org[1] + dy), FONT, scale, BLACK,
+                            thickness, cv2.LINE_AA)
     cv2.putText(img, msg, org, FONT, scale, color, thickness, cv2.LINE_AA)
 
 

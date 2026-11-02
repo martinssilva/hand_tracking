@@ -46,6 +46,7 @@ python main.py <comando> --help
 | Comando  | O que faz |
 |----------|-----------|
 | `gestos` | Jogo **Imite o Gesto**: aparece um símbolo de mão e você tem que repetir com a sua mão antes do tempo acabar. Acertou = ganha pontos; 3 erros = fim de jogo e mostra a pontuação. |
+| `teremim` | **Simulador de teremim**: mão direita controla a nota, mão esquerda o volume. |
 | `mouse`  | Script original (`hand_tracking.py`): controla o mouse com o indicador. |
 
 ### Jogo "Imite o Gesto"
@@ -61,16 +62,40 @@ python main.py gestos --pontos 50 --tempo 4 --vidas 5 --camera 1
 - No canto inferior aparece o gesto que a câmera está detectando (ajuda a entender erros).
 - ESC sai.
 
+### Simulador de Teremim
+
+Precisa do pacote de áudio: `pip install sounddevice`
+
+```
+python main.py teremim                                  # 2 oitavas a partir de C3, glissando livre
+python main.py teremim --escala pentatonica --nota-base A2 --oitavas 3
+python main.py teremim --timbre seno --vibrato
+```
+
+- **Mão direita** (lado direito da tela): a altura da ponta do indicador define a nota
+  (mais alto = mais agudo). As linhas mostram onde fica cada nota.
+- **Punho na mão direita** = silêncio. Assim dá para separar uma nota da outra.
+- **Mão esquerda** (lado esquerdo): mais alta = mais volume. Sem ela, o volume fica fixo (`--volume`).
+- Escalas: `livre` (contínuo, como o teremim real), `cromatica`, `maior`, `menor`,
+  `pentatonica`, `blues`. Nas escalas a nota "gruda" na mais próxima, o que facilita tocar afinado.
+- Timbres: `teremim`, `seno`, `triangulo`, `quadrada`.
+- Na tela: nome da nota, frequência, afinador em cents e um mini osciloscópio.
+- Teclas: **Q** troca a escala, **W** troca o timbre, **V** liga/desliga o vibrato,
+  **H** mostra os pontos da mão, **ESC** sai.
+
 ### Estrutura
 
 ```
 main.py                  # lançador: python main.py <comando>
 apps/
   gesture_game.py        # jogo Imite o Gesto
+  theremin.py            # simulador de teremim
   common/
     tracker.py           # HandTracker (MediaPipe) — até 2 mãos, reutilizável
     gestures.py          # dedos esticados/dobrados + reconhecimento de gestos
     draw.py              # texto, painéis, barras, corações, ícone de mão
+    music.py             # notas <-> frequências, escalas, afinação
+    synth.py             # oscilador com glide/vibrato + saída de áudio (sounddevice)
 ```
 
 Para criar uma funcionalidade nova: crie `apps/<nome>.py` com uma função `main(argv)`
